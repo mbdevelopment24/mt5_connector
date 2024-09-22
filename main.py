@@ -186,7 +186,7 @@ class TradingBot:
         print(f"Account balance: {account_balance}, Free margin: {free_margin}")
 
         stop_loss_distance = abs(entry_price - stop_loss)
-        risk_percentage = 1.0  # Risking 1% of the balance
+        risk_percentage = 0.5  # Risking 1% of the balance
         leverage = LEVERAGE  # Assume LEVERAGE is defined in your config
         lot_size = self.calculate_lot_size(account_balance, risk_percentage, stop_loss_distance, symbol, free_margin, leverage)
         print(f"Final lot size for order: {lot_size}")
