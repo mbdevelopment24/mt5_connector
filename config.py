@@ -18,7 +18,3 @@ Change to 'LIMIT' for limit orders
 """
 ORDER_TYPE = 'MARKET'
 
-"""
-Trading configuration
-"""
-LEVERAGE = 30  # Set your desired leverage (e.g., 10x)

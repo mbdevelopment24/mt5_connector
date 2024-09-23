@@ -3,7 +3,7 @@ import requests
 import re
 from flask import Flask, request
 import MetaTrader5 as mt5
-from config import TELEGRAM_TOKEN, CHANNEL_USERNAME, MT5_LOGIN, MT5_SERVER, MT5_PASSWORD, MT5_PATH, ORDER_TYPE, LEVERAGE
+from config import TELEGRAM_TOKEN, CHANNEL_USERNAME, MT5_LOGIN, MT5_SERVER, MT5_PASSWORD, MT5_PATH, ORDER_TYPE
 
 
 class TradingBot:
@@ -19,18 +19,14 @@ class TradingBot:
             quit()
 
     @staticmethod
-    def calculate_lot_size(account_balance, risk_percentage, stop_loss_distance, symbol, free_margin, leverage):
-        """Calculate lot size based on account balance, risk, free margin, and leverage."""
+    def calculate_lot_size(account_balance, risk_percentage, stop_loss_distance, symbol, free_margin):
+        """Calculate lot size based on account balance, risk, free margin, without using leverage."""
         risk_amount = account_balance * (risk_percentage / 100.0)
         tick_value = mt5.symbol_info(symbol).trade_contract_size
 
-        # Calculate the amount controlled by leverage
-        effective_balance = account_balance * leverage
-
-        # Cap the lot size based on free margin and effective balance
+        # Cap the lot size based on free margin and risk amount
         lot_size = min(free_margin / (stop_loss_distance * tick_value),
-                       risk_amount / (stop_loss_distance * tick_value),
-                       effective_balance / (stop_loss_distance * tick_value))
+                       risk_amount / (stop_loss_distance * tick_value))
 
         # Retrieve max lot size from symbol info
         symbol_info = mt5.symbol_info(symbol)
@@ -39,10 +35,10 @@ class TradingBot:
             lot_size = min(lot_size, max_lot_size)
             print(f"Max allowed lot size for {symbol}: {max_lot_size}")
 
-        print(f"Calculated lot size: {lot_size}, Effective balance: {effective_balance}")
+        print(f"Calculated lot size: {lot_size}")
 
         # Format lot size
-        if symbol in ["AMZN", "AAPL", "WMT", "BAC"]:
+        if symbol in ["AMZN", "AAPL", "WMT", "BAC", "BABA", "ZM", "T"]:
             lot_size = round(lot_size)  # Round to the nearest integer
             lot_size = float(f"{lot_size:.2f}")  # Format with '.00'
         else:
@@ -186,9 +182,14 @@ class TradingBot:
         print(f"Account balance: {account_balance}, Free margin: {free_margin}")
 
         stop_loss_distance = abs(entry_price - stop_loss)
-        risk_percentage = 0.5  # Risking 1% of the balance
-        leverage = LEVERAGE  # Assume LEVERAGE is defined in your config
-        lot_size = self.calculate_lot_size(account_balance, risk_percentage, stop_loss_distance, symbol, free_margin, leverage)
+        risk_percentage = 1.0  # Risking 1% of the balance
+        lot_size = self.calculate_lot_size(account_balance, risk_percentage, stop_loss_distance, symbol, free_margin)
+
+        # Check if symbol is BTCUSD or ETHUSD and reduce the lot size by half
+        if symbol in ["BTCUSD", "ETHUSD"]:
+            lot_size = lot_size / 2
+            print(f"Reduced lot size for {symbol}: {lot_size}")
+
         print(f"Final lot size for order: {lot_size}")
 
         return self.place_order(action, symbol, entry_price, stop_loss, take_profit, lot_size)
@@ -209,5 +210,6 @@ if __name__ == '__main__':
     bot = TradingBot()
     try:
         bot.run()
-    finally:
+    except KeyboardInterrupt:
+        print("Shutting down MT5...")
         bot.shutdown_mt5()
